@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import './App.css'
 
 import AdminAuthModal from './admin/AdminAuthModal'
+import { parseStudentNameAndPin } from './utils/studentHelper'
 
 const Admin = lazy(() => import('./admin/Admin'))
 
@@ -38,6 +39,8 @@ function normalizeQuestionText(text) {
 
 function App() {
   const [name, setName] = useState('')
+  const [studentPin, setStudentPin] = useState('')
+  const [studentError, setStudentError] = useState('')
   const [userId, setUserId] = useState(null)
 
   const [subjects, setSubjects] = useState([])
@@ -68,29 +71,56 @@ function App() {
 
   const handleStart = async () => {
     const cleanName = name.trim()
+    const cleanPin = studentPin.trim()
+    setStudentError('')
 
-    if (!cleanName || loading) return
+    if (!cleanName) {
+      setStudentError('Nama tidak boleh kosong.')
+      return
+    }
 
+    if (!cleanPin) {
+      setStudentError('PIN peserta tidak boleh kosong.')
+      return
+    }
+
+    if (loading) return
     setLoading(true)
 
-    const { data, error } = await supabase
+    // Cari siswa yang sudah didaftarkan admin
+    const { data: users, error } = await supabase
       .from('users')
-      .insert({
-        name: cleanName,
-      })
       .select('id, name')
-      .single()
+      .not('name', 'like', '__archived_%')
 
     setLoading(false)
 
     if (error) {
-      console.error('Gagal menyimpan peserta:', error)
-      alert('Nama belum dapat disimpan. Silakan coba lagi.')
+      console.error('Gagal memeriksa data peserta:', error)
+      setStudentError('Gagal memeriksa data peserta. Periksa koneksi internet.')
       return
     }
 
-    setUserId(data.id)
-    setName(data.name)
+    // Cocokkan nama dan pin
+    const matchedUser = (users || []).find((u) => {
+      const parsed = parseStudentNameAndPin(u.name)
+      return (
+        parsed.name.toLowerCase() === cleanName.toLowerCase() &&
+        parsed.pin === cleanPin
+      )
+    })
+
+    if (!matchedUser) {
+      setStudentError(
+        'Nama atau PIN peserta salah / belum didaftarkan oleh Admin. Silakan hubungi Guru/Admin.'
+      )
+      return
+    }
+
+    const parsed = parseStudentNameAndPin(matchedUser.name)
+    setUserId(matchedUser.id)
+    setName(parsed.name)
+    setStudentError('')
     setShowSubjects(true)
   }
 
@@ -1513,26 +1543,63 @@ function App() {
               id="student-name"
               type="text"
               value={name}
-              onChange={(event) =>
+              onChange={(event) => {
                 setName(event.target.value)
-              }
+                if (studentError) setStudentError('')
+              }}
+              placeholder="Masukkan nama terdaftar"
+              autoComplete="name"
+            />
+
+            <label htmlFor="student-pin" style={{ marginTop: '16px' }}>
+              PIN Masuk
+            </label>
+
+            <input
+              id="student-pin"
+              type="password"
+              inputMode="numeric"
+              maxLength={10}
+              value={studentPin}
+              onChange={(event) => {
+                setStudentPin(event.target.value)
+                if (studentError) setStudentError('')
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   handleStart()
                 }
               }}
-              placeholder="Masukkan nama"
-              autoComplete="name"
+              placeholder="Masukkan PIN siswa (diberikan Admin/Guru)"
+              autoComplete="current-password"
             />
+
+            {studentError && (
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '11px 14px',
+                  borderRadius: '12px',
+                  background: '#faf0ed',
+                  color: '#9a6458',
+                  fontSize: '0.88rem',
+                  lineHeight: 1.5,
+                  fontWeight: 600,
+                }}
+              >
+                ⚠️ {studentError}
+              </div>
+            )}
 
             <button
               className="primary-button"
               type="button"
               onClick={handleStart}
-              disabled={!name.trim() || loading}
+              disabled={!name.trim() || !studentPin.trim() || loading}
+              style={{ marginTop: '18px' }}
             >
               {loading
-                ? 'Menyimpan...'
+                ? 'Memeriksa...'
                 : 'Mulai Belajar'}
 
               {!loading && <span>→</span>}

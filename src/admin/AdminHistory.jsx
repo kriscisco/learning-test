@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import { parseStudentNameAndPin } from '../utils/studentHelper'
 import './AdminDashboard.css'
 
 export default function AdminHistory({ onBack }) {
@@ -105,32 +106,35 @@ export default function AdminHistory({ onBack }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((row) => (
-                    <tr key={row.id}>
-                      <td><strong>{row.users?.name || 'Anonim'}</strong></td>
-                      <td>{row.subjects?.name || '-'}</td>
-                      <td>{row.correct_answers} / {row.total_questions}</td>
-                      <td>
-                        <strong style={{ color: row.passed ? '#426b5a' : '#9a6458', fontSize: '1.05rem' }}>
-                          {row.score}
-                        </strong>
-                      </td>
-                      <td>
-                        <span className={row.passed ? 'tag-passed' : 'tag-failed'}>
-                          {row.passed ? 'Lulus' : 'Belum Lulus'}
-                        </span>
-                      </td>
-                      <td style={{ color: '#7a857f', fontSize: '0.85rem' }}>
-                        {new Date(row.created_at).toLocaleDateString('id-ID', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map((row) => {
+                    const parsedUser = parseStudentNameAndPin(row.users?.name)
+                    return (
+                      <tr key={row.id}>
+                        <td><strong>{parsedUser.name || 'Anonim'}</strong></td>
+                        <td>{row.subjects?.name || '-'}</td>
+                        <td>{row.correct_answers} / {row.total_questions}</td>
+                        <td>
+                          <strong style={{ color: row.passed ? '#426b5a' : '#9a6458', fontSize: '1.05rem' }}>
+                            {row.score}
+                          </strong>
+                        </td>
+                        <td>
+                          <span className={row.passed ? 'tag-passed' : 'tag-failed'}>
+                            {row.passed ? 'Lulus' : 'Belum Lulus'}
+                          </span>
+                        </td>
+                        <td style={{ color: '#7a857f', fontSize: '0.85rem' }}>
+                          {new Date(row.created_at).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

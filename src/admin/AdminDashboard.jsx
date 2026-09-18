@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import { parseStudentNameAndPin } from '../utils/studentHelper'
 import './AdminDashboard.css'
 
 export default function AdminDashboard({ onBack }) {
@@ -19,7 +20,7 @@ export default function AdminDashboard({ onBack }) {
 
       try {
         const [usersRes, questionsRes, sessionsRes] = await Promise.all([
-          supabase.from('users').select('id', { count: 'exact', head: true }),
+          supabase.from('users').select('id', { count: 'exact', head: true }).not('name', 'like', '__archived_%'),
           supabase.from('questions').select('id', { count: 'exact', head: true }).eq('is_active', true),
           supabase.from('test_sessions').select(`
             id,
@@ -127,9 +128,11 @@ export default function AdminDashboard({ onBack }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {recentTests.map((item) => (
-                        <tr key={item.id}>
-                          <td><strong>{item.users?.name || 'Anonim'}</strong></td>
+                      {recentTests.map((item) => {
+                        const parsedUser = parseStudentNameAndPin(item.users?.name)
+                        return (
+                          <tr key={item.id}>
+                            <td><strong>{parsedUser.name || 'Anonim'}</strong></td>
                           <td>{item.subjects?.name || '-'}</td>
                           <td>
                             <span style={{ fontWeight: 800, color: item.passed ? '#426b5a' : '#9a6458' }}>
@@ -150,7 +153,8 @@ export default function AdminDashboard({ onBack }) {
                             })}
                           </td>
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
