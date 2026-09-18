@@ -1,0 +1,59 @@
+.admin-recent-card {
+  padding: 24px;
+  border: 1px solid #dfe3dc;
+  border-radius: 18px;
+  background: #fffdf8;
+  box-shadow: 0 5px 18px rgba(47, 59, 53, 0.035);
+}
+
+.admin-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.92rem;
+}
+
+.admin-table th {
+  padding: 12px 14px;
+  border-bottom: 2px solid #e7ece8;
+  color: #6d8379;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.admin-table td {
+  padding: 14px;
+  border-bottom: 1px solid #eef2ed;
+  color: #26332f;
+}
+
+.admin-table tr:hover td {
+  background: #fbf9f4;
+}
+
+.tag-passed {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eaf3ee;
+  color: #3b6b55;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.tag-failed {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #faf0ed;
+  color: #9a6458;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
