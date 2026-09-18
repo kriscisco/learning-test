@@ -133,7 +133,7 @@ button {
   letter-spacing: 0.12em;
 }
 
-h1 {
+.welcome-card h1 {
   margin: 22px 0 18px;
   color: #303530;
   font-size: clamp(32px, 5vw, 52px);
@@ -142,7 +142,7 @@ h1 {
   font-weight: 750;
 }
 
-h1 span {
+.welcome-card h1 span {
   color: #58766e;
 }
 
@@ -531,7 +531,7 @@ h1 span {
     border-radius: 22px;
   }
 
-  h1 {
+  .welcome-card h1 {
     font-size: clamp(30px, 9vw, 42px);
   }
 

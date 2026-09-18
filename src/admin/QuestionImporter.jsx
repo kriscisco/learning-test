@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import mammoth from 'mammoth'
 import { supabase } from '../supabase'
 import './QuestionImporter.css'
 
@@ -315,6 +314,9 @@ function QuestionImporter({ onBack }) {
           .toLowerCase()
           .endsWith('.docx')
       ) {
+        const mammothModule = await import('mammoth')
+        const mammoth = mammothModule.default || mammothModule
+
         const arrayBuffer =
           await selectedFile.arrayBuffer()
 

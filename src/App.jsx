@@ -1,7 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense, useMemo } from 'react'
 import { supabase } from './supabase'
-import Admin from './admin/Admin'
 import './App.css'
+
+const Admin = lazy(() => import('./admin/Admin'))
+
+function AppAdminFallback() {
+  return (
+    <div className="app-shell" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
+      <div style={{ textAlign: 'center', color: '#58766e' }}>
+        <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⏳</div>
+        <p style={{ margin: 0, fontWeight: 700, color: '#303530' }}>Memuat Admin Panel...</p>
+      </div>
+    </div>
+  )
+}
 
 function shuffleArray(array) {
   const result = [...array]
@@ -420,38 +432,35 @@ function App() {
     setShowAdmin(false)
   }
 
-  const getCurrentQuestion = () => {
+  const currentQuestion = useMemo(() => {
     return questions[currentQuestionIndex] || null
-  }
+  }, [questions, currentQuestionIndex])
 
-  const getSelectedOption = () => {
-    const currentQuestion = getCurrentQuestion()
-
+  const selectedOption = useMemo(() => {
     if (!currentQuestion) return null
-
     const selectedOptionId = answers[currentQuestion.id]
-
     return (
       currentQuestion.question_options?.find(
         (option) => option.id === selectedOptionId
       ) || null
     )
-  }
+  }, [currentQuestion, answers])
 
-  const getCorrectOption = () => {
-    const currentQuestion = getCurrentQuestion()
-
+  const correctOption = useMemo(() => {
     if (!currentQuestion) return null
-
     return (
       currentQuestion.question_options?.find(
         (option) => option.is_correct
       ) || null
     )
-  }
+  }, [currentQuestion])
 
   if (showAdmin) {
-    return <Admin onBack={handleBackFromAdmin} />
+    return (
+      <Suspense fallback={<AppAdminFallback />}>
+        <Admin onBack={handleBackFromAdmin} />
+      </Suspense>
+    )
   }
 
   if (showResult && result) {
@@ -792,10 +801,6 @@ function App() {
   }
 
   if (showTest) {
-    const currentQuestion = getCurrentQuestion()
-    const selectedOption = getSelectedOption()
-    const correctOption = getCorrectOption()
-
     if (!currentQuestion) {
       return null
     }

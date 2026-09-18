@@ -1,8 +1,20 @@
-import { useState } from 'react'
-import SubjectsEditor from './SubjectsEditor'
-import QuestionEditor from './QuestionEditor'
-import QuestionImporter from './QuestionImporter'
+import { useState, lazy, Suspense } from 'react'
 import './Admin.css'
+
+const SubjectsEditor = lazy(() => import('./SubjectsEditor'))
+const QuestionEditor = lazy(() => import('./QuestionEditor'))
+const QuestionImporter = lazy(() => import('./QuestionImporter'))
+
+function AdminLoadingFallback() {
+  return (
+    <div className="admin-page" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
+      <div style={{ textAlign: 'center', color: '#577067' }}>
+        <div style={{ fontSize: '1.8rem', marginBottom: '12px' }}>⏳</div>
+        <p style={{ margin: 0, fontWeight: 600 }}>Memuat modul admin...</p>
+      </div>
+    </div>
+  )
+}
 
 function Admin({ onBack }) {
   const [showSubjectsEditor, setShowSubjectsEditor] = useState(false)
@@ -11,25 +23,31 @@ function Admin({ onBack }) {
 
   if (showSubjectsEditor) {
     return (
-      <SubjectsEditor
-        onBack={() => setShowSubjectsEditor(false)}
-      />
+      <Suspense fallback={<AdminLoadingFallback />}>
+        <SubjectsEditor
+          onBack={() => setShowSubjectsEditor(false)}
+        />
+      </Suspense>
     )
   }
 
   if (showQuestionEditor) {
     return (
-      <QuestionEditor
-        onBack={() => setShowQuestionEditor(false)}
-      />
+      <Suspense fallback={<AdminLoadingFallback />}>
+        <QuestionEditor
+          onBack={() => setShowQuestionEditor(false)}
+        />
+      </Suspense>
     )
   }
 
   if (showQuestionImporter) {
     return (
-      <QuestionImporter
-        onBack={() => setShowQuestionImporter(false)}
-      />
+      <Suspense fallback={<AdminLoadingFallback />}>
+        <QuestionImporter
+          onBack={() => setShowQuestionImporter(false)}
+        />
+      </Suspense>
     )
   }
 
