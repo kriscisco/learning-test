@@ -21,11 +21,11 @@ export default function AdminHistory({ onBack }) {
             total_questions,
             correct_answers,
             wrong_answers,
-            created_at,
+            completed_at,
             users (name),
             subjects (name)
           `)
-          .order('created_at', { ascending: false })
+          .order('completed_at', { ascending: false })
           .limit(100)
 
         if (error) throw error
@@ -124,13 +124,15 @@ export default function AdminHistory({ onBack }) {
                           </span>
                         </td>
                         <td style={{ color: '#7a857f', fontSize: '0.85rem' }}>
-                          {new Date(row.created_at).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {row.completed_at
+                            ? new Date(row.completed_at).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : '-'}
                         </td>
                       </tr>
                     )

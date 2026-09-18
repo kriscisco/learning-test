@@ -26,10 +26,10 @@ export default function AdminDashboard({ onBack }) {
             id,
             score,
             passed,
-            created_at,
+            completed_at,
             users (name),
             subjects (name)
-          `).order('created_at', { ascending: false }).limit(10)
+          `).order('completed_at', { ascending: false }).limit(10)
         ])
 
         const totalStudents = usersRes.count || 0
@@ -145,12 +145,14 @@ export default function AdminDashboard({ onBack }) {
                             </span>
                           </td>
                           <td style={{ color: '#7a857f', fontSize: '0.85rem' }}>
-                            {new Date(item.created_at).toLocaleDateString('id-ID', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
+                            {item.completed_at
+                              ? new Date(item.completed_at).toLocaleDateString('id-ID', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })
+                              : '-'}
                           </td>
                         </tr>
                         )
