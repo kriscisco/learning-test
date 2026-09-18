@@ -16,7 +16,7 @@ function AdminLoadingFallback() {
   )
 }
 
-function Admin({ onBack }) {
+function Admin({ onBack, onLogout }) {
   const [showSubjectsEditor, setShowSubjectsEditor] = useState(false)
   const [showQuestionEditor, setShowQuestionEditor] = useState(false)
   const [showQuestionImporter, setShowQuestionImporter] = useState(false)
@@ -55,12 +55,25 @@ function Admin({ onBack }) {
     <div className="admin-page">
       <div className="admin-header">
         <div>
-          <button
-            className="admin-back-button"
-            onClick={onBack}
-          >
-            ← Kembali ke Halaman Utama
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px' }}>
+            <button
+              className="admin-back-button"
+              onClick={onBack}
+            >
+              ← Ke Halaman Utama
+            </button>
+            <button
+              className="admin-back-button"
+              onClick={onLogout}
+              style={{
+                color: '#9a6458',
+                borderColor: '#e8d8d3',
+                background: '#fdfbf9',
+              }}
+            >
+              🚪 Keluar (Logout)
+            </button>
+          </div>
 
           <h1>Admin Panel</h1>
 

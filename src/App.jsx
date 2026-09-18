@@ -2,6 +2,8 @@ import { useEffect, useState, lazy, Suspense, useMemo } from 'react'
 import { supabase } from './supabase'
 import './App.css'
 
+import AdminAuthModal from './admin/AdminAuthModal'
+
 const Admin = lazy(() => import('./admin/Admin'))
 
 function AppAdminFallback() {
@@ -57,6 +59,7 @@ function App() {
   const [showTest, setShowTest] = useState(false)
   const [showResult, setShowResult] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [showAdminAuthModal, setShowAdminAuthModal] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [loadingSubjects, setLoadingSubjects] = useState(false)
@@ -425,10 +428,20 @@ function App() {
   }
 
   const handleOpenAdmin = () => {
-    setShowAdmin(true)
+    const isAuthed = sessionStorage.getItem('admin_auth') === 'true'
+    if (isAuthed) {
+      setShowAdmin(true)
+    } else {
+      setShowAdminAuthModal(true)
+    }
   }
 
   const handleBackFromAdmin = () => {
+    setShowAdmin(false)
+  }
+
+  const handleAdminLogout = () => {
+    sessionStorage.removeItem('admin_auth')
     setShowAdmin(false)
   }
 
@@ -458,7 +471,7 @@ function App() {
   if (showAdmin) {
     return (
       <Suspense fallback={<AppAdminFallback />}>
-        <Admin onBack={handleBackFromAdmin} />
+        <Admin onBack={handleBackFromAdmin} onLogout={handleAdminLogout} />
       </Suspense>
     )
   }
@@ -796,6 +809,15 @@ function App() {
             Belajar sedikit demi sedikit setiap hari.
           </span>
         </footer>
+
+        <AdminAuthModal
+          isOpen={showAdminAuthModal}
+          onClose={() => setShowAdminAuthModal(false)}
+          onSuccess={() => {
+            setShowAdminAuthModal(false)
+            setShowAdmin(true)
+          }}
+        />
       </div>
     )
   }
@@ -1306,6 +1328,15 @@ function App() {
             Belajar sedikit demi sedikit setiap hari.
           </span>
         </footer>
+
+        <AdminAuthModal
+          isOpen={showAdminAuthModal}
+          onClose={() => setShowAdminAuthModal(false)}
+          onSuccess={() => {
+            setShowAdminAuthModal(false)
+            setShowAdmin(true)
+          }}
+        />
       </div>
     )
   }
@@ -1409,6 +1440,15 @@ function App() {
             Belajar sedikit demi sedikit setiap hari.
           </span>
         </footer>
+
+        <AdminAuthModal
+          isOpen={showAdminAuthModal}
+          onClose={() => setShowAdminAuthModal(false)}
+          onSuccess={() => {
+            setShowAdminAuthModal(false)
+            setShowAdmin(true)
+          }}
+        />
       </div>
     )
   }
@@ -1543,6 +1583,15 @@ function App() {
           Belajar sedikit demi sedikit setiap hari.
         </span>
       </footer>
+
+      <AdminAuthModal
+        isOpen={showAdminAuthModal}
+        onClose={() => setShowAdminAuthModal(false)}
+        onSuccess={() => {
+          setShowAdminAuthModal(false)
+          setShowAdmin(true)
+        }}
+      />
     </div>
   )
 }
