@@ -57,3 +57,123 @@
   font-size: 0.78rem;
   font-weight: 700;
 }
+
+.tag-exam {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #f3eff9;
+  color: #5c4587;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: 1px solid #dfd5f0;
+}
+
+.tag-practice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #edf6f9;
+  color: #27677a;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: 1px solid #cbe3eb;
+}
+
+/* History Toolbar & Batch Bar */
+.history-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+  margin-bottom: 14px;
+}
+
+.history-filter-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.history-search-input {
+  border: 1px solid #dcd7ce;
+  border-radius: 9px;
+  background: #fff;
+  padding: 8px 12px;
+  color: #30443f;
+  font-size: 13px;
+  outline: none;
+  min-width: 220px;
+}
+
+.history-search-input:focus {
+  border-color: #557b70;
+  box-shadow: 0 0 0 3px rgba(85, 123, 112, 0.12);
+}
+
+.history-batch-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: #fffdf8;
+  border: 1px solid #e4e0d6;
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(60, 70, 65, 0.04);
+}
+
+.history-row-selected td {
+  background: #fafaf5 !important;
+}
+
+.history-del-btn {
+  border: 1px solid #eccaca;
+  background: #fff;
+  color: #a84848;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-del-btn:hover:not(:disabled) {
+  background: #fdf2f2;
+  border-color: #d89e9e;
+  color: #8c3232;
+}
+
+.history-del-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.history-alert {
+  padding: 10px 14px;
+  border-radius: 9px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.history-alert.success {
+  background: #edf5f1;
+  color: #3b6b55;
+  border: 1px solid #c9e4d5;
+}
+
+.history-alert.error {
+  background: #fdf0ee;
+  color: #9a483a;
+  border: 1px solid #f2cfc9;
+}

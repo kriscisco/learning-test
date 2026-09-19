@@ -381,21 +381,45 @@ function App() {
 
     setSavingResult(true)
 
-    const { data: sessionData, error: sessionError } = await supabase
+    const baseStartTime = testStartedAt ? new Date(testStartedAt) : new Date()
+    baseStartTime.setMilliseconds(mode === 'practice' ? 111 : 999)
+    const formattedStartedAt = baseStartTime.toISOString()
+
+    const sessionPayload = {
+      user_id: userId,
+      subject_id: selectedSubject.id,
+      total_questions: finalResult.total,
+      correct_answers: finalResult.correct,
+      wrong_answers: finalResult.wrong,
+      score: Number(finalResult.score.toFixed(2)),
+      passed: finalResult.passed,
+      started_at: formattedStartedAt,
+      completed_at: new Date().toISOString(),
+      mode: mode === 'practice' ? 'practice' : 'test',
+    }
+
+    let sessionData = null
+    let sessionError = null
+
+    const initialInsert = await supabase
       .from('test_sessions')
-      .insert({
-        user_id: userId,
-        subject_id: selectedSubject.id,
-        total_questions: finalResult.total,
-        correct_answers: finalResult.correct,
-        wrong_answers: finalResult.wrong,
-        score: Number(finalResult.score.toFixed(2)),
-        passed: finalResult.passed,
-        started_at: testStartedAt || new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-      })
+      .insert(sessionPayload)
       .select('id')
       .single()
+
+    if (initialInsert.error && initialInsert.error.code === 'PGRST204') {
+      delete sessionPayload.mode
+      const fallbackInsert = await supabase
+        .from('test_sessions')
+        .insert(sessionPayload)
+        .select('id')
+        .single()
+      sessionData = fallbackInsert.data
+      sessionError = fallbackInsert.error
+    } else {
+      sessionData = initialInsert.data
+      sessionError = initialInsert.error
+    }
 
     if (sessionError || !sessionData) {
       console.error('Gagal menyimpan hasil tes:', sessionError)
