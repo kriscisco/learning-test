@@ -27,33 +27,22 @@ export default function AdminHistory({ onBack }) {
     setLoading(true)
     setFeedback(null)
     try {
-      const baseSelect = `
-        id,
-        score,
-        passed,
-        total_questions,
-        correct_answers,
-        wrong_answers,
-        started_at,
-        completed_at,
-        users (name),
-        subjects (name)
-      `
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('test_sessions')
-        .select(`${baseSelect}, mode`)
+        .select(`
+          id,
+          score,
+          passed,
+          total_questions,
+          correct_answers,
+          wrong_answers,
+          started_at,
+          completed_at,
+          users (name),
+          subjects (name)
+        `)
         .order('completed_at', { ascending: false })
         .limit(300)
-
-      if (error && error.code === 'PGRST204') {
-        const fallback = await supabase
-          .from('test_sessions')
-          .select(baseSelect)
-          .order('completed_at', { ascending: false })
-          .limit(300)
-        data = fallback.data
-        error = fallback.error
-      }
 
       if (error) throw error
       setSessions(data || [])
