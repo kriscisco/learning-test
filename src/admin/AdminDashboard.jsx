@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { parseStudentNameAndPin } from '../utils/studentHelper'
 import { fetchAppSettings, getLocalSettings } from '../utils/settingsHelper'
+import { getDeletedSessionIds } from '../utils/historyHelper'
 import './AdminDashboard.css'
 
 export default function AdminDashboard({ onBack }) {
@@ -21,7 +22,7 @@ export default function AdminDashboard({ onBack }) {
       setLoading(true)
 
       try {
-        const [usersRes, questionsRes, sessionsRes, settings] = await Promise.all([
+        const [usersRes, questionsRes, sessionsRes, settings, deletedSet] = await Promise.all([
           supabase.from('users').select('id', { count: 'exact', head: true })
             .not('name', 'like', '__archived_%')
             .not('name', 'like', '__sys_%'),
@@ -33,8 +34,9 @@ export default function AdminDashboard({ onBack }) {
             completed_at,
             users (name),
             subjects (name)
-          `).order('completed_at', { ascending: false }).limit(10),
-          fetchAppSettings()
+          `).order('completed_at', { ascending: false }).limit(30),
+          fetchAppSettings(),
+          getDeletedSessionIds()
         ])
 
         const currentThreshold = settings.passThreshold || 85
@@ -42,7 +44,8 @@ export default function AdminDashboard({ onBack }) {
 
         const totalStudents = usersRes.count || 0
         const totalQuestions = questionsRes.count || 0
-        const testList = sessionsRes.data || []
+        const rawList = sessionsRes.data || []
+        const testList = rawList.filter((t) => !deletedSet.has(t.id)).slice(0, 10)
 
         let avg = 0
         let passCount = 0

@@ -1613,7 +1613,7 @@ function App() {
                 }
               }}
               placeholder="Masukkan PIN siswa (diberikan Admin/Guru)"
-              autoComplete="current-password"
+              autoComplete="one-time-code"
             />
 
             {studentError && (

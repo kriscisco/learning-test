@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { parseStudentNameAndPin } from '../utils/studentHelper'
+import { getDeletedSessionIds, markSessionsAsDeleted } from '../utils/historyHelper'
 import './AdminDashboard.css'
 
 function getSessionMode(session) {
@@ -27,25 +28,29 @@ export default function AdminHistory({ onBack }) {
     setLoading(true)
     setFeedback(null)
     try {
-      const { data, error } = await supabase
-        .from('test_sessions')
-        .select(`
-          id,
-          score,
-          passed,
-          total_questions,
-          correct_answers,
-          wrong_answers,
-          started_at,
-          completed_at,
-          users (name),
-          subjects (name)
-        `)
-        .order('completed_at', { ascending: false })
-        .limit(300)
+      const [sessionsRes, deletedSet] = await Promise.all([
+        supabase
+          .from('test_sessions')
+          .select(`
+            id,
+            score,
+            passed,
+            total_questions,
+            correct_answers,
+            wrong_answers,
+            started_at,
+            completed_at,
+            users (name),
+            subjects (name)
+          `)
+          .order('completed_at', { ascending: false })
+          .limit(300),
+        getDeletedSessionIds()
+      ])
 
-      if (error) throw error
-      setSessions(data || [])
+      if (sessionsRes.error) throw sessionsRes.error
+      const activeSessions = (sessionsRes.data || []).filter((s) => !deletedSet.has(s.id))
+      setSessions(activeSessions)
       setSelectedIds([])
     } catch (err) {
       console.error('Gagal memuat riwayat tes:', err)
@@ -111,17 +116,23 @@ export default function AdminHistory({ onBack }) {
     setFeedback(null)
 
     try {
-      await supabase
-        .from('test_answers')
-        .delete()
-        .eq('test_session_id', session.id)
+      // 1. Simpan tanda terhapus agar persisten lintas refresh dan perangkat
+      await markSessionsAsDeleted([session.id])
 
-      const { error } = await supabase
-        .from('test_sessions')
-        .delete()
-        .eq('id', session.id)
+      // 2. Upayakan hapus fisik di database
+      try {
+        await supabase
+          .from('test_answers')
+          .delete()
+          .eq('test_session_id', session.id)
 
-      if (error) throw error
+        await supabase
+          .from('test_sessions')
+          .delete()
+          .eq('id', session.id)
+      } catch (delErr) {
+        console.warn('Hapus fisik database dicegah RLS, soft-delete aktif:', delErr)
+      }
 
       setSessions((prev) => prev.filter((s) => s.id !== session.id))
       setSelectedIds((prev) => prev.filter((id) => id !== session.id))
@@ -148,17 +159,23 @@ export default function AdminHistory({ onBack }) {
     setFeedback(null)
 
     try {
-      await supabase
-        .from('test_answers')
-        .delete()
-        .in('test_session_id', idsToDelete)
+      // 1. Simpan tanda terhapus agar persisten lintas refresh dan perangkat
+      await markSessionsAsDeleted(idsToDelete)
 
-      const { error } = await supabase
-        .from('test_sessions')
-        .delete()
-        .in('id', idsToDelete)
+      // 2. Upayakan hapus fisik di database
+      try {
+        await supabase
+          .from('test_answers')
+          .delete()
+          .in('test_session_id', idsToDelete)
 
-      if (error) throw error
+        await supabase
+          .from('test_sessions')
+          .delete()
+          .in('id', idsToDelete)
+      } catch (delErr) {
+        console.warn('Hapus fisik database dicegah RLS, soft-delete aktif:', delErr)
+      }
 
       const idSet = new Set(idsToDelete)
       setSessions((prev) => prev.filter((s) => !idSet.has(s.id)))
