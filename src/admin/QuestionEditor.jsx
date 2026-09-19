@@ -13,11 +13,13 @@ function QuestionEditor({ onBack }) {
   const [subjects, setSubjects] = useState([])
   const [selectedSubject, setSelectedSubject] = useState('')
   const [questions, setQuestions] = useState([])
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState([])
 
   const [loading, setLoading] = useState(true)
   const [loadingQuestions, setLoadingQuestions] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  const [batchDeleting, setBatchDeleting] = useState(false)
 
   const [showForm, setShowForm] = useState(false)
   const [editingQuestionId, setEditingQuestionId] = useState(null)
@@ -38,6 +40,7 @@ function QuestionEditor({ onBack }) {
       loadQuestions(selectedSubject)
     } else {
       setQuestions([])
+      setSelectedQuestionIds([])
     }
   }, [selectedSubject])
 
@@ -107,7 +110,80 @@ function QuestionEditor({ onBack }) {
     }))
 
     setQuestions(formattedQuestions)
+    setSelectedQuestionIds([])
     setLoadingQuestions(false)
+  }
+
+  function toggleSelectQuestion(questionId) {
+    setSelectedQuestionIds((prev) =>
+      prev.includes(questionId)
+        ? prev.filter((id) => id !== questionId)
+        : [...prev, questionId]
+    )
+  }
+
+  function toggleSelectAll() {
+    if (selectedQuestionIds.length === questions.length) {
+      setSelectedQuestionIds([])
+    } else {
+      setSelectedQuestionIds(questions.map((q) => q.id))
+    }
+  }
+
+  async function handleDeleteBatch(idsToDelete, isAll = false) {
+    if (!idsToDelete || idsToDelete.length === 0) return
+
+    const subjectName = selectedSubjectData?.name || 'mata pelajaran ini'
+    const message = isAll
+      ? `⚠️ PERINGATAN BESAR:\nApakah Anda yakin ingin MENGHAPUS SEMUA (${idsToDelete.length}) soal pada ${subjectName}?\n\nSemua soal, pilihan jawaban, dan data terkait akan dihapus secara permanen.`
+      : `Hapus ${idsToDelete.length} soal yang dipilih?\n\nSoal dan pilihan jawaban yang terkait akan dihapus secara permanen.`
+
+    const confirmed = window.confirm(message)
+    if (!confirmed) return
+
+    setBatchDeleting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      // 1. Hapus test_answers terkait jika ada agar tidak melanggar foreign key
+      await supabase
+        .from('test_answers')
+        .delete()
+        .in('question_id', idsToDelete)
+
+      // 2. Hapus pilihan jawaban
+      await supabase
+        .from('question_options')
+        .delete()
+        .in('question_id', idsToDelete)
+
+      // 3. Hapus soal
+      const { error: deleteError } = await supabase
+        .from('questions')
+        .delete()
+        .in('id', idsToDelete)
+
+      if (deleteError) {
+        setError(`Gagal menghapus soal massal: ${deleteError.message}`)
+        setBatchDeleting(false)
+        return
+      }
+
+      if (editingQuestionId && idsToDelete.includes(editingQuestionId)) {
+        resetForm()
+        setShowForm(false)
+      }
+
+      setSelectedQuestionIds([])
+      setSuccess(`Berhasil menghapus ${idsToDelete.length} soal.`)
+      await loadQuestions(selectedSubject)
+    } catch (err) {
+      console.error('Gagal menghapus soal secara massal:', err)
+      setError('Terjadi kendala saat menghapus soal secara massal.')
+    } finally {
+      setBatchDeleting(false)
+    }
   }
 
   function resetForm() {
@@ -453,6 +529,7 @@ function QuestionEditor({ onBack }) {
             value={selectedSubject}
             onChange={(event) => {
               setSelectedSubject(event.target.value)
+              setSelectedQuestionIds([])
               setShowForm(false)
               setSuccess('')
               setError('')
@@ -692,51 +769,118 @@ function QuestionEditor({ onBack }) {
               </button>
             </div>
           ) : (
-            <div className="question-list">
-              {questions.map((question, index) => (
-                <article
-                  className={`question-card ${
-                    !question.is_active ? 'is-inactive' : ''
-                  }`}
-                  key={question.id}
-                >
-                  <div className="question-card-top">
-                    <div className="question-number">
-                      Soal {questions.length - index}
-                    </div>
+            <>
+              <div className="question-batch-bar">
+                <div className="question-batch-left">
+                  <label className="question-batch-select-all">
+                    <input
+                      type="checkbox"
+                      checked={questions.length > 0 && selectedQuestionIds.length === questions.length}
+                      onChange={toggleSelectAll}
+                      disabled={batchDeleting || saving}
+                    />
+                    <span>
+                      {selectedQuestionIds.length === 0
+                        ? 'Pilih Semua'
+                        : `${selectedQuestionIds.length} dari ${questions.length} soal dipilih`}
+                    </span>
+                  </label>
+                </div>
 
-                    <div className="question-card-actions">
-                      <span
-                        className={`question-status ${
-                          question.is_active
-                            ? 'active'
-                            : 'inactive'
-                        }`}
-                      >
-                        {question.is_active
-                          ? 'Aktif'
-                          : 'Nonaktif'}
-                      </span>
-
+                <div className="question-batch-actions">
+                  {selectedQuestionIds.length > 0 && (
+                    <>
                       <button
                         type="button"
-                        className="question-edit-button"
-                        onClick={() => openEditForm(question)}
-                        disabled={deletingId === question.id || saving}
+                        className="question-batch-btn question-btn-cancel-select"
+                        onClick={() => setSelectedQuestionIds([])}
+                        disabled={batchDeleting}
                       >
-                        Edit
+                        Batal Pilih
                       </button>
 
                       <button
                         type="button"
-                        className="question-delete-button"
-                        onClick={() => handleDeleteQuestion(question.id)}
-                        disabled={deletingId === question.id || saving}
+                        className="question-batch-btn question-btn-delete-selected"
+                        onClick={() => handleDeleteBatch(selectedQuestionIds, false)}
+                        disabled={batchDeleting}
                       >
-                        {deletingId === question.id ? 'Menghapus...' : 'Hapus'}
+                        {batchDeleting ? 'Menghapus...' : `🗑️ Hapus Terpilih (${selectedQuestionIds.length})`}
                       </button>
-                    </div>
-                  </div>
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    className="question-batch-btn question-btn-delete-all"
+                    onClick={() => handleDeleteBatch(questions.map((q) => q.id), true)}
+                    disabled={batchDeleting}
+                    title="Hapus semua soal untuk mata pelajaran ini"
+                  >
+                    {batchDeleting ? 'Menghapus...' : '⚠️ Hapus Semua Soal'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="question-list">
+                {questions.map((question, index) => {
+                  const isSelected = selectedQuestionIds.includes(question.id)
+                  return (
+                    <article
+                      className={`question-card ${
+                        !question.is_active ? 'is-inactive' : ''
+                      } ${isSelected ? 'is-selected' : ''}`}
+                      key={question.id}
+                    >
+                      <div className="question-card-top">
+                        <div className="question-card-header-left">
+                          <label className="question-card-checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectQuestion(question.id)}
+                              disabled={batchDeleting || saving}
+                              aria-label={`Pilih soal ${questions.length - index}`}
+                            />
+                          </label>
+
+                          <div className="question-number">
+                            Soal {questions.length - index}
+                          </div>
+                        </div>
+
+                        <div className="question-card-actions">
+                          <span
+                            className={`question-status ${
+                              question.is_active
+                                ? 'active'
+                                : 'inactive'
+                            }`}
+                          >
+                            {question.is_active
+                              ? 'Aktif'
+                              : 'Nonaktif'}
+                          </span>
+
+                          <button
+                            type="button"
+                            className="question-edit-button"
+                            onClick={() => openEditForm(question)}
+                            disabled={deletingId === question.id || batchDeleting || saving}
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            className="question-delete-button"
+                            onClick={() => handleDeleteQuestion(question.id)}
+                            disabled={deletingId === question.id || batchDeleting || saving}
+                          >
+                            {deletingId === question.id ? 'Menghapus...' : 'Hapus'}
+                          </button>
+                        </div>
+                      </div>
 
                   <div className="question-text">
                     {question.question_text}
@@ -793,10 +937,12 @@ function QuestionEditor({ onBack }) {
                       {question.explanation}
                     </div>
                   )}
-                </article>
-              ))}
+                  </article>
+                )
+              })}
             </div>
-          )}
+          </>
+        )}
         </div>
       )}
     </div>
