@@ -100,7 +100,8 @@ function App() {
     const { data: users, error } = await supabase
       .from('users')
       .select('id, name')
-      .not('name', 'like', '__%')
+      .not('name', 'like', '__archived_%')
+      .not('name', 'like', '__sys_%')
 
     setLoading(false)
 
@@ -110,8 +111,9 @@ function App() {
       return
     }
 
-    // Cocokkan nama dan pin
-    const matchedUser = (users || []).find((u) => {
+    // Cocokkan nama dan pin (abaikan konfigurasi atau user sistem)
+    const validUsers = (users || []).filter((u) => !u.name?.startsWith('__'))
+    const matchedUser = validUsers.find((u) => {
       const parsed = parseStudentNameAndPin(u.name)
       return (
         parsed.name.toLowerCase() === cleanName.toLowerCase() &&

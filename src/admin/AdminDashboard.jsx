@@ -22,7 +22,9 @@ export default function AdminDashboard({ onBack }) {
 
       try {
         const [usersRes, questionsRes, sessionsRes, settings] = await Promise.all([
-          supabase.from('users').select('id', { count: 'exact', head: true }).not('name', 'like', '__%'),
+          supabase.from('users').select('id', { count: 'exact', head: true })
+            .not('name', 'like', '__archived_%')
+            .not('name', 'like', '__sys_%'),
           supabase.from('questions').select('id', { count: 'exact', head: true }).eq('is_active', true),
           supabase.from('test_sessions').select(`
             id,

@@ -21,11 +21,13 @@ export default function AdminStudents({ onBack }) {
       const { data, error } = await supabase
         .from('users')
         .select('id, name, created_at')
-        .not('name', 'like', '__%')
+        .not('name', 'like', '__archived_%')
+        .not('name', 'like', '__sys_%')
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setStudents(data || [])
+      const validStudents = (data || []).filter((s) => !s.name?.startsWith('__'))
+      setStudents(validStudents)
     } catch (err) {
       console.error('Gagal memuat peserta:', err)
     } finally {
