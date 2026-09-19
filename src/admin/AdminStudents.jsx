@@ -21,7 +21,7 @@ export default function AdminStudents({ onBack }) {
       const { data, error } = await supabase
         .from('users')
         .select('id, name, created_at')
-        .not('name', 'like', '__archived_%')
+        .not('name', 'like', '__%')
         .order('created_at', { ascending: false })
 
       if (error) throw error

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { parseStudentNameAndPin } from '../utils/studentHelper'
+import { fetchAppSettings, getLocalSettings } from '../utils/settingsHelper'
 import './AdminDashboard.css'
 
 export default function AdminDashboard({ onBack }) {
   const [loading, setLoading] = useState(true)
+  const [passThreshold, setPassThreshold] = useState(() => getLocalSettings().passThreshold)
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalQuestions: 0,
@@ -19,8 +21,8 @@ export default function AdminDashboard({ onBack }) {
       setLoading(true)
 
       try {
-        const [usersRes, questionsRes, sessionsRes] = await Promise.all([
-          supabase.from('users').select('id', { count: 'exact', head: true }).not('name', 'like', '__archived_%'),
+        const [usersRes, questionsRes, sessionsRes, settings] = await Promise.all([
+          supabase.from('users').select('id', { count: 'exact', head: true }).not('name', 'like', '__%'),
           supabase.from('questions').select('id', { count: 'exact', head: true }).eq('is_active', true),
           supabase.from('test_sessions').select(`
             id,
@@ -29,8 +31,12 @@ export default function AdminDashboard({ onBack }) {
             completed_at,
             users (name),
             subjects (name)
-          `).order('completed_at', { ascending: false }).limit(10)
+          `).order('completed_at', { ascending: false }).limit(10),
+          fetchAppSettings()
         ])
+
+        const currentThreshold = settings.passThreshold || 85
+        setPassThreshold(currentThreshold)
 
         const totalStudents = usersRes.count || 0
         const totalQuestions = questionsRes.count || 0
@@ -41,7 +47,7 @@ export default function AdminDashboard({ onBack }) {
         if (testList.length > 0) {
           const sum = testList.reduce((acc, curr) => acc + (curr.score || 0), 0)
           avg = sum / testList.length
-          passCount = testList.filter((t) => t.passed).length
+          passCount = testList.filter((t) => (t.score ?? 0) >= currentThreshold).length
         }
 
         setStats({
@@ -101,7 +107,7 @@ export default function AdminDashboard({ onBack }) {
               <div className="admin-stat-card">
                 <span>TINGKAT KELULUSAN</span>
                 <strong>{stats.passRate}%</strong>
-                <small>Ambang batas ≥ 85</small>
+                <small>Ambang batas ≥ {passThreshold}</small>
               </div>
             </div>
 
@@ -130,18 +136,19 @@ export default function AdminDashboard({ onBack }) {
                     <tbody>
                       {recentTests.map((item) => {
                         const parsedUser = parseStudentNameAndPin(item.users?.name)
+                        const isPass = (item.score ?? 0) >= passThreshold
                         return (
                           <tr key={item.id}>
                             <td><strong>{parsedUser.name || 'Anonim'}</strong></td>
                           <td>{item.subjects?.name || '-'}</td>
                           <td>
-                            <span style={{ fontWeight: 800, color: item.passed ? '#426b5a' : '#9a6458' }}>
+                            <span style={{ fontWeight: 800, color: isPass ? '#426b5a' : '#9a6458' }}>
                               {item.score}
                             </span>
                           </td>
                           <td>
-                            <span className={item.passed ? 'tag-passed' : 'tag-failed'}>
-                              {item.passed ? 'Lulus' : 'Belum Lulus'}
+                            <span className={isPass ? 'tag-passed' : 'tag-failed'}>
+                              {isPass ? 'Lulus' : 'Belum Lulus'}
                             </span>
                           </td>
                           <td style={{ color: '#7a857f', fontSize: '0.85rem' }}>

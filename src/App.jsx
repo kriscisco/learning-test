@@ -4,6 +4,7 @@ import './App.css'
 
 import AdminAuthModal from './admin/AdminAuthModal'
 import { parseStudentNameAndPin } from './utils/studentHelper'
+import { fetchAppSettings, getLocalSettings } from './utils/settingsHelper'
 
 const Admin = lazy(() => import('./admin/Admin'))
 
@@ -69,6 +70,14 @@ function App() {
   const [loadingQuestions, setLoadingQuestions] = useState(false)
   const [savingResult, setSavingResult] = useState(false)
 
+  const [appSettings, setAppSettings] = useState(getLocalSettings)
+
+  useEffect(() => {
+    fetchAppSettings().then((settings) => {
+      setAppSettings(settings)
+    })
+  }, [])
+
   const handleStart = async () => {
     const cleanName = name.trim()
     const cleanPin = studentPin.trim()
@@ -91,7 +100,7 @@ function App() {
     const { data: users, error } = await supabase
       .from('users')
       .select('id, name')
-      .not('name', 'like', '__archived_%')
+      .not('name', 'like', '__%')
 
     setLoading(false)
 
@@ -176,7 +185,9 @@ function App() {
     setQuestionCount(total)
 
     if (total > 0) {
-      setSelectedCount(Math.min(10, total))
+      const counts = appSettings.questionCounts || [5, 10, 20, 30]
+      const preferred = counts.includes(10) ? 10 : (counts[0] || total)
+      setSelectedCount(Math.min(preferred, total) || total)
     } else {
       setSelectedCount(0)
     }
@@ -311,7 +322,8 @@ function App() {
     const total = questions.length
     const wrong = total - correct
     const score = total > 0 ? (correct / total) * 100 : 0
-    const passed = score >= 85
+    const passThreshold = appSettings.passThreshold || 85
+    const passed = score >= passThreshold
 
     const review = questions
       .map((question, index) => {
@@ -491,11 +503,13 @@ function App() {
   }
 
   const handleBackFromAdmin = () => {
+    fetchAppSettings().then(setAppSettings)
     setShowAdmin(false)
   }
 
   const handleAdminLogout = () => {
     sessionStorage.removeItem('admin_auth')
+    fetchAppSettings().then(setAppSettings)
     setShowAdmin(false)
   }
 
@@ -664,7 +678,7 @@ function App() {
 
               <div>
                 <span>Batas lulus</span>
-                <strong>85</strong>
+                <strong>{appSettings.passThreshold || 85}</strong>
               </div>
             </div>
 
@@ -680,7 +694,7 @@ function App() {
                   fontSize: '0.92rem',
                 }}
               >
-                Nilaimu belum mencapai 85. Tidak apa-apa,
+                Nilaimu belum mencapai {appSettings.passThreshold || 85}. Tidak apa-apa,
                 kamu bisa mencoba lagi dan belajar dari soal
                 yang sudah dikerjakan.
               </div>
@@ -1284,7 +1298,7 @@ function App() {
                   </div>
 
                   <div className="count-grid">
-                    {[5, 10, 20, 30].map((count) => {
+                    {(appSettings.questionCounts || [5, 10, 20, 30]).map((count) => {
                       if (count > questionCount) return null
 
                       return (
@@ -1305,19 +1319,21 @@ function App() {
                       )
                     })}
 
-                    <button
-                      className={`count-button ${
-                        selectedCount === questionCount
-                          ? 'selected'
-                          : ''
-                      }`}
-                      type="button"
-                      onClick={() =>
-                        setSelectedCount(questionCount)
-                      }
-                    >
-                      Semua ({questionCount})
-                    </button>
+                    {appSettings.allowAll !== false && (
+                      <button
+                        className={`count-button ${
+                          selectedCount === questionCount
+                            ? 'selected'
+                            : ''
+                        }`}
+                        type="button"
+                        onClick={() =>
+                          setSelectedCount(questionCount)
+                        }
+                      >
+                        Semua ({questionCount})
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -1660,7 +1676,7 @@ function App() {
             <h2>Belajar Lagi</h2>
 
             <p>
-              Jika nilai belum mencapai 85, kamu akan
+              Jika nilai belum mencapai {appSettings.passThreshold || 85}, kamu akan
               disarankan untuk mengulang latihan.
             </p>
           </article>
