@@ -171,10 +171,34 @@
   padding: 6px 11px;
   font-size: 12px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.question-edit-button:hover {
+.question-edit-button:hover:not(:disabled) {
   background: #f5f2eb;
+}
+
+.question-delete-button {
+  border: 1px solid #e8cfcf;
+  background: #fff;
+  color: #a84848;
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.question-delete-button:hover:not(:disabled) {
+  background: #fdf2f2;
+  border-color: #d89e9e;
+  color: #8c3232;
+}
+
+.question-edit-button:disabled,
+.question-delete-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .question-text {

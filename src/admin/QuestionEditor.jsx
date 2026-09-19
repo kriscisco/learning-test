@@ -17,8 +17,10 @@ function QuestionEditor({ onBack }) {
   const [loading, setLoading] = useState(true)
   const [loadingQuestions, setLoadingQuestions] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
 
   const [showForm, setShowForm] = useState(false)
+  const [editingQuestionId, setEditingQuestionId] = useState(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -109,6 +111,7 @@ function QuestionEditor({ onBack }) {
   }
 
   function resetForm() {
+    setEditingQuestionId(null)
     setQuestionText('')
     setExplanation('')
     setOptions(emptyOptions.map((option) => ({ ...option })))
@@ -120,6 +123,90 @@ function QuestionEditor({ onBack }) {
     resetForm()
     setSuccess('')
     setShowForm(true)
+  }
+
+  function openEditForm(question) {
+    setError('')
+    setSuccess('')
+    setEditingQuestionId(question.id)
+    setQuestionText(question.question_text || '')
+    setExplanation(question.explanation || '')
+    setIsActive(question.is_active ?? true)
+
+    if (question.question_options && question.question_options.length > 0) {
+      const sorted = [...question.question_options].sort(
+        (a, b) => a.option_order - b.option_order
+      )
+      const mapped = sorted.map((opt) => ({
+        id: opt.id,
+        text: opt.option_text || '',
+        isCorrect: Boolean(opt.is_correct),
+      }))
+      while (mapped.length < 4) {
+        mapped.push({ text: '', isCorrect: false })
+      }
+      setOptions(mapped)
+    } else {
+      setOptions(emptyOptions.map((option) => ({ ...option })))
+    }
+
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function handleDeleteQuestion(questionId) {
+    const target = questions.find((q) => q.id === questionId)
+    const snippet = target?.question_text
+      ? `\n\n"${target.question_text.slice(0, 70)}${target.question_text.length > 70 ? '...' : ''}"`
+      : ''
+
+    const confirmed = window.confirm(
+      `Hapus soal ini secara permanen?${snippet}\n\nSoal dan pilihan jawaban akan dihapus.`
+    )
+    if (!confirmed) return
+
+    setDeletingId(questionId)
+    setError('')
+    setSuccess('')
+
+    try {
+      // 1. Hapus test_answers terkait jika ada agar tidak melanggar foreign key
+      await supabase
+        .from('test_answers')
+        .delete()
+        .eq('question_id', questionId)
+
+      // 2. Hapus pilihan jawaban
+      await supabase
+        .from('question_options')
+        .delete()
+        .eq('question_id', questionId)
+
+      // 3. Hapus soal
+      const { error: deleteError } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', questionId)
+
+      if (deleteError) {
+        setError(`Gagal menghapus soal: ${deleteError.message}`)
+        setDeletingId(null)
+        return
+      }
+
+      if (editingQuestionId === questionId) {
+        resetForm()
+        setShowForm(false)
+      }
+
+      setSuccess('Soal berhasil dihapus.')
+      await loadQuestions(selectedSubject)
+    } catch (err) {
+      console.error('Gagal menghapus soal:', err)
+      setError('Terjadi kendala saat menghapus soal.')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   function closeForm() {
@@ -192,54 +279,121 @@ function QuestionEditor({ onBack }) {
 
     setSaving(true)
 
-    const { data: question, error: insertQuestionError } =
-      await supabase
+    if (editingQuestionId) {
+      // 1. Update tabel questions
+      const { error: updateQuestionError } = await supabase
         .from('questions')
-        .insert({
-          subject_id: selectedSubject,
+        .update({
           question_text: cleanQuestion,
           explanation: cleanExplanation || null,
-          difficulty: 'medium',
           is_active: isActive,
         })
-        .select('id')
-        .single()
+        .eq('id', editingQuestionId)
 
-    if (insertQuestionError) {
-      setError(insertQuestionError.message)
+      if (updateQuestionError) {
+        setError(`Gagal memperbarui soal: ${updateQuestionError.message}`)
+        setSaving(false)
+        return
+      }
+
+      // 2. Update opsi jawaban (mempertahankan ID untuk integritas relasi)
+      let hasOptionError = false
+      for (let i = 0; i < cleanOptions.length; i++) {
+        const opt = cleanOptions[i]
+        if (opt.id) {
+          const { error: updErr } = await supabase
+            .from('question_options')
+            .update({
+              option_text: opt.text,
+              is_correct: opt.isCorrect,
+              option_order: i + 1,
+            })
+            .eq('id', opt.id)
+
+          if (updErr) {
+            console.error('Error updating option:', updErr)
+            hasOptionError = true
+          }
+        } else {
+          const { error: insErr } = await supabase
+            .from('question_options')
+            .insert({
+              question_id: editingQuestionId,
+              option_text: opt.text,
+              is_correct: opt.isCorrect,
+              option_order: i + 1,
+            })
+
+          if (insErr) {
+            console.error('Error inserting option:', insErr)
+            hasOptionError = true
+          }
+        }
+      }
+
+      if (hasOptionError) {
+        setError('Sebagian pilihan jawaban mungkin belum tersimpan dengan sempurna.')
+        setSaving(false)
+        return
+      }
+
+      resetForm()
+      setShowForm(false)
+      setSuccess('Soal berhasil diperbarui.')
+
+      await loadQuestions(selectedSubject)
+
       setSaving(false)
-      return
-    }
+    } else {
+      const { data: question, error: insertQuestionError } =
+        await supabase
+          .from('questions')
+          .insert({
+            subject_id: selectedSubject,
+            question_text: cleanQuestion,
+            explanation: cleanExplanation || null,
+            difficulty: 'medium',
+            is_active: isActive,
+          })
+          .select('id')
+          .single()
 
-    const optionRows = cleanOptions.map((option, index) => ({
-      question_id: question.id,
-      option_text: option.text,
-      is_correct: option.isCorrect,
-      option_order: index + 1,
-    }))
+      if (insertQuestionError) {
+        setError(insertQuestionError.message)
+        setSaving(false)
+        return
+      }
 
-    const { error: insertOptionsError } = await supabase
-      .from('question_options')
-      .insert(optionRows)
+      const optionRows = cleanOptions.map((option, index) => ({
+        question_id: question.id,
+        option_text: option.text,
+        is_correct: option.isCorrect,
+        option_order: index + 1,
+      }))
 
-    if (insertOptionsError) {
-      await supabase
-        .from('questions')
-        .delete()
-        .eq('id', question.id)
+      const { error: insertOptionsError } = await supabase
+        .from('question_options')
+        .insert(optionRows)
 
-      setError(insertOptionsError.message)
+      if (insertOptionsError) {
+        await supabase
+          .from('questions')
+          .delete()
+          .eq('id', question.id)
+
+        setError(insertOptionsError.message)
+        setSaving(false)
+        return
+      }
+
+      resetForm()
+      setShowForm(false)
+      setSuccess('Soal berhasil ditambahkan.')
+
+      await loadQuestions(selectedSubject)
+
       setSaving(false)
-      return
     }
-
-    resetForm()
-    setShowForm(false)
-    setSuccess('Soal berhasil ditambahkan.')
-
-    await loadQuestions(selectedSubject)
-
-    setSaving(false)
   }
 
   function getDifficultyLabel(difficulty) {
@@ -339,7 +493,7 @@ function QuestionEditor({ onBack }) {
         >
           <div className="question-form-header">
             <div>
-              <h3>Tambah Soal</h3>
+              <h3>{editingQuestionId ? 'Edit Soal' : 'Tambah Soal'}</h3>
 
               <p>
                 Mata Pelajaran:{' '}
@@ -482,7 +636,9 @@ function QuestionEditor({ onBack }) {
               className="question-save-button"
               disabled={saving}
             >
-              {saving ? 'Menyimpan...' : 'Simpan Soal'}
+              {saving
+                ? (editingQuestionId ? 'Menyimpan Perubahan...' : 'Menyimpan...')
+                : (editingQuestionId ? 'Simpan Perubahan' : 'Simpan Soal')}
             </button>
           </div>
         </form>
@@ -565,8 +721,19 @@ function QuestionEditor({ onBack }) {
                       <button
                         type="button"
                         className="question-edit-button"
+                        onClick={() => openEditForm(question)}
+                        disabled={deletingId === question.id || saving}
                       >
                         Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        className="question-delete-button"
+                        onClick={() => handleDeleteQuestion(question.id)}
+                        disabled={deletingId === question.id || saving}
+                      >
+                        {deletingId === question.id ? 'Menghapus...' : 'Hapus'}
                       </button>
                     </div>
                   </div>
